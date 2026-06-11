@@ -40,5 +40,6 @@ jobs:
           path: ob-cardnews-factory/output/
       - name: Callback Make
         env:
+          PAYLOAD_CALLBACK_URL: ${{ github.event.client_payload.callback_url }}
           MAKE_CALLBACK_URL: ${{ secrets.MAKE_CALLBACK_URL }}
         run: node scripts/callback_make.js output/manifests/*_manifest.json
