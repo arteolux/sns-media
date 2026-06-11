@@ -1,0 +1,23 @@
+{
+  "name": "ob-cardnews-factory",
+  "version": "0.1.0",
+  "description": "OB Cardnews Factory v0.1 - JSON to PNG contact sheet and shorts MP4",
+  "type": "module",
+  "scripts": {
+    "validate": "node scripts/validate_content.js data/sample_fullup.json",
+    "render": "node scripts/render_cards.js data/sample_fullup.json",
+    "contact": "node scripts/contact_sheet.js data/sample_fullup.json",
+    "video": "node scripts/make_video.js data/sample_fullup.json",
+    "build": "node scripts/build.js",
+    "upload:drive": "node scripts/upload_drive.js",
+    "callback": "node scripts/callback_make.js"
+  },
+  "dependencies": {
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "@playwright/test": "^1.45.0",
+    "googleapis": "^173.0.0",
+    "handlebars": "^4.7.8",
+    "playwright": "^1.45.0",
+    "sharp": "^0.33.4"
+  }
+}

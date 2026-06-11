@@ -1,0 +1,44 @@
+name: Render Cardnews
+
+on:
+  repository_dispatch:
+    types: [render]
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: ob-cardnews-factory
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Prepare payload JSON
+        env:
+          PAYLOAD_JSON: ${{ toJson(github.event.client_payload.post.json_payload) }}
+        run: |
+          node -e "const fs=require('fs'); fs.mkdirSync('data',{recursive:true}); const payload=process.env.PAYLOAD_JSON; fs.writeFileSync('data/payload.json', payload && payload !== 'null' ? payload : fs.readFileSync('data/sample_fullup.json'));"
+      - name: Render assets
+        run: npm run build -- data/payload.json
+      - name: Upload assets to Google Drive
+        env:
+          GDRIVE_SA_KEY: ${{ secrets.GDRIVE_SA_KEY }}
+          GDRIVE_PARENT_FOLDER_ID: ${{ secrets.GDRIVE_PARENT_FOLDER_ID }}
+        run: node scripts/upload_drive.js output/manifests/*_manifest.json
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cardnews-output
+          path: ob-cardnews-factory/output/
+      - name: Callback Make
+        env:
+          MAKE_CALLBACK_URL: ${{ secrets.MAKE_CALLBACK_URL }}
+        run: node scripts/callback_make.js output/manifests/*_manifest.json
