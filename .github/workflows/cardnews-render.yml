@@ -3,6 +3,9 @@ name: Render Cardnews
 on:
   repository_dispatch:
     types: [render]
+  push:
+    paths:
+      - "ob-cardnews-factory/jobs/*.json"
   workflow_dispatch:
 
 defaults:
@@ -14,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -24,8 +29,11 @@ jobs:
       - name: Prepare payload JSON
         env:
           PAYLOAD_JSON: ${{ toJson(github.event.client_payload.post.json_payload) }}
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
         run: |
-          node -e "const fs=require('fs'); fs.mkdirSync('data',{recursive:true}); const payload=process.env.PAYLOAD_JSON; fs.writeFileSync('data/payload.json', payload && payload !== 'null' ? payload : fs.readFileSync('data/sample_fullup.json'));"
+          node -e "const fs=require('fs'); const cp=require('child_process'); fs.mkdirSync('data',{recursive:true}); const payload=process.env.PAYLOAD_JSON; if(process.env.EVENT_NAME==='repository_dispatch' && payload && payload !== 'null'){ fs.writeFileSync('data/payload.json', payload); process.exit(0); } if(process.env.EVENT_NAME==='push'){ const before=process.env.BEFORE_SHA; const after=process.env.AFTER_SHA || 'HEAD'; let files=[]; try { const range=before && !/^0+$/.test(before) ? [before, after] : [after]; files=cp.execFileSync('git',['diff','--name-only',...range,'--','jobs/*.json'],{encoding:'utf8'}).split(/\r?\n/).filter(Boolean); } catch (error) {} if(!files.length){ files=cp.execFileSync('git',['ls-files','jobs/*.json'],{encoding:'utf8'}).split(/\r?\n/).filter(Boolean); } if(!files.length) throw new Error('No job JSON found under ob-cardnews-factory/jobs/*.json'); files.sort((a,b)=>{ const at=Number(cp.execFileSync('git',['log','-1','--format=%ct','--',a],{encoding:'utf8'}).trim() || 0); const bt=Number(cp.execFileSync('git',['log','-1','--format=%ct','--',b],{encoding:'utf8'}).trim() || 0); return bt-at || a.localeCompare(b); }); fs.copyFileSync(files[0], 'data/payload.json'); console.log('Using job payload:', files[0]); process.exit(0); } fs.writeFileSync('data/payload.json', fs.readFileSync('data/sample_fullup.json'));"
       - name: Render assets
         run: npm run build -- data/payload.json
       - name: Upload assets to Google Drive
